@@ -13,7 +13,8 @@ export async function POST(
         const body = await request.json();
         const { amount, type, description } = body;
 
-        if (!amount || !type || (type !== 'credit' && type !== 'debit')) {
+        const validTypes = ['credit', 'debit', 'payment-received', 'payment-made'];
+        if (!amount || !type || !validTypes.includes(type)) {
             return NextResponse.json(
                 { success: false, error: 'Invalid transaction data' },
                 { status: 400 }
@@ -33,6 +34,7 @@ export async function POST(
         }
 
         const transaction = {
+            _id: new ObjectId(),
             date: new Date(),
             amount: parseFloat(amount),
             type,
@@ -54,8 +56,12 @@ export async function POST(
 
         if (type === 'credit') {
             updateData.$inc = { totalCredit: parseFloat(amount) };
-        } else {
+        } else if (type === 'debit') {
             updateData.$inc = { totalDebit: parseFloat(amount) };
+        } else if (type === 'payment-received') {
+            updateData.$inc = { totalReceived: parseFloat(amount) };
+        } else if (type === 'payment-made') {
+            updateData.$inc = { totalPaid: parseFloat(amount) };
         }
 
         await db.collection('kisaans').updateOne(
@@ -65,7 +71,11 @@ export async function POST(
 
         // Recalculate balance
         const updatedKisaan = await db.collection('kisaans').findOne({ _id: new ObjectId(id) });
-        const balance = (updatedKisaan?.totalCredit || 0) - (updatedKisaan?.totalDebit || 0);
+        const balance = (
+            (updatedKisaan?.totalCredit || 0) + (updatedKisaan?.totalPaid || 0)
+        ) - (
+                (updatedKisaan?.totalDebit || 0) + (updatedKisaan?.totalReceived || 0)
+            );
 
         await db.collection('kisaans').updateOne(
             { _id: new ObjectId(id) },

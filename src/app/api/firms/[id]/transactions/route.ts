@@ -13,7 +13,8 @@ export async function POST(
         const body = await request.json();
         const { amount, type, description } = body;
 
-        if (!amount || !type || (type !== 'credit' && type !== 'debit')) {
+        const validTypes = ['credit', 'debit', 'payment-received', 'payment-made'];
+        if (!amount || !type || !validTypes.includes(type)) {
             return NextResponse.json(
                 { success: false, error: 'Invalid transaction data' },
                 { status: 400 }
@@ -33,11 +34,20 @@ export async function POST(
         }
 
         const transaction = {
+            _id: new ObjectId(),
             date: new Date(),
             amount: parseFloat(amount),
             type,
             description: description || '',
         };
+
+        // Ensure transactions array exists
+        if (!firm.transactions) {
+            await db.collection('firms').updateOne(
+                { _id: new ObjectId(id) },
+                { $set: { transactions: [] } }
+            );
+        }
 
         // Update firm with new transaction and recalculate totals
         const updateData: any = {
@@ -45,10 +55,15 @@ export async function POST(
             $set: { updatedAt: new Date() },
         };
 
+        // Update specific accumulators based on type
         if (type === 'credit') {
             updateData.$inc = { totalCredit: parseFloat(amount) };
-        } else {
+        } else if (type === 'debit') {
             updateData.$inc = { totalDebit: parseFloat(amount) };
+        } else if (type === 'payment-received') {
+            updateData.$inc = { totalReceived: parseFloat(amount) };
+        } else if (type === 'payment-made') {
+            updateData.$inc = { totalPaid: parseFloat(amount) };
         }
 
         await db.collection('firms').updateOne(
@@ -57,8 +72,15 @@ export async function POST(
         );
 
         // Recalculate balance
+        // Balance = (Credit + Paid) - (Debit + Received)
+        // Positive = They owe us
+        // Negative = We owe them
         const updatedFirm = await db.collection('firms').findOne({ _id: new ObjectId(id) });
-        const balance = (updatedFirm?.totalCredit || 0) - (updatedFirm?.totalDebit || 0);
+        const balance = (
+            (updatedFirm?.totalCredit || 0) + (updatedFirm?.totalPaid || 0)
+        ) - (
+                (updatedFirm?.totalDebit || 0) + (updatedFirm?.totalReceived || 0)
+            );
 
         await db.collection('firms').updateOne(
             { _id: new ObjectId(id) },

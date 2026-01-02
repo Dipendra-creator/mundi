@@ -13,34 +13,38 @@ export async function GET() {
         const firms = await db.collection('firms').find({}).toArray();
         const firmStats = {
             total: firms.length,
-            totalCredit: firms.reduce((sum: number, f: any) => sum + (f.totalCredit || 0), 0),
-            totalDebit: firms.reduce((sum: number, f: any) => sum + (f.totalDebit || 0), 0),
+            // Calculate Total Receivable (Credit) based on positive balances
+            totalCredit: firms.reduce((sum: number, f: any) => f.balance > 0 ? sum + f.balance : sum, 0),
+            // Calculate Total Payable (Debit) based on negative balances
+            totalDebit: firms.reduce((sum: number, f: any) => f.balance < 0 ? sum + Math.abs(f.balance) : sum, 0),
             netBalance: firms.reduce((sum: number, f: any) => sum + (f.balance || 0), 0),
             topCreditors: firms
-                .sort((a: any, b: any) => (b.totalCredit || 0) - (a.totalCredit || 0))
+                .sort((a: any, b: any) => (b.balance || 0) - (a.balance || 0))
                 .slice(0, 5)
-                .map((f: any) => ({ name: f.name, amount: f.totalCredit || 0 })),
+                .map((f: any) => ({ name: f.name, amount: f.balance || 0 })),
             topDebtors: firms
-                .sort((a: any, b: any) => (b.totalDebit || 0) - (a.totalDebit || 0))
+                .sort((a: any, b: any) => (a.balance || 0) - (b.balance || 0))
                 .slice(0, 5)
-                .map((f: any) => ({ name: f.name, amount: f.totalDebit || 0 })),
+                .map((f: any) => ({ name: f.name, amount: Math.abs(f.balance || 0) })),
         };
 
         // Get all kisaans
         const kisaans = await db.collection('kisaans').find({}).toArray();
         const kisaanStats = {
             total: kisaans.length,
-            totalCredit: kisaans.reduce((sum: number, k: any) => sum + (k.totalCredit || 0), 0),
-            totalDebit: kisaans.reduce((sum: number, k: any) => sum + (k.totalDebit || 0), 0),
+            // Calculate Total Receivable (Credit) based on positive balances
+            totalCredit: kisaans.reduce((sum: number, k: any) => k.balance > 0 ? sum + k.balance : sum, 0),
+            // Calculate Total Payable (Debit) based on negative balances
+            totalDebit: kisaans.reduce((sum: number, k: any) => k.balance < 0 ? sum + Math.abs(k.balance) : sum, 0),
             netBalance: kisaans.reduce((sum: number, k: any) => sum + (k.balance || 0), 0),
             topCreditors: kisaans
-                .sort((a: any, b: any) => (b.totalCredit || 0) - (a.totalCredit || 0))
+                .sort((a: any, b: any) => (b.balance || 0) - (a.balance || 0))
                 .slice(0, 5)
-                .map((k: any) => ({ name: k.name, village: k.village, amount: k.totalCredit || 0 })),
+                .map((k: any) => ({ name: k.name, village: k.village, amount: k.balance || 0 })),
             topDebtors: kisaans
-                .sort((a: any, b: any) => (b.totalDebit || 0) - (a.totalDebit || 0))
+                .sort((a: any, b: any) => (a.balance || 0) - (b.balance || 0))
                 .slice(0, 5)
-                .map((k: any) => ({ name: k.name, village: k.village, amount: k.totalDebit || 0 })),
+                .map((k: any) => ({ name: k.name, village: k.village, amount: Math.abs(k.balance || 0) })),
         };
 
         // Get all stocks

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import {
     Table,
@@ -37,6 +38,7 @@ interface Firm {
 }
 
 export default function FirmsPage() {
+    const router = useRouter()
     const [firms, setFirms] = useState<Firm[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
@@ -47,7 +49,7 @@ export default function FirmsPage() {
     const [newFirm, setNewFirm] = useState({ name: "" })
     const [transaction, setTransaction] = useState({
         amount: "",
-        type: "credit" as "credit" | "debit",
+        type: "credit" as "credit" | "debit" | "payment-received" | "payment-made",
         description: ""
     })
 
@@ -217,12 +219,18 @@ export default function FirmsPage() {
                                     id="type"
                                     value={transaction.type}
                                     onChange={(e) =>
-                                        setTransaction({ ...transaction, type: e.target.value as "credit" | "debit" })
+                                        setTransaction({ ...transaction, type: e.target.value as any })
                                     }
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
-                                    <option value="credit">Credit (लेने) - To Receive</option>
-                                    <option value="debit">Debit (देने) - To Pay</option>
+                                    <optgroup label="Receivable (लेने हैं)">
+                                        <option value="credit">Bill/Sale (सामान दिया) - You gave goods</option>
+                                        <option value="payment-received">Payment Received (पैसा आया) - They paid you</option>
+                                    </optgroup>
+                                    <optgroup label="Payable (देने हैं)">
+                                        <option value="debit">Bill/Purchase (सामान लिया) - You took goods</option>
+                                        <option value="payment-made">Payment Given (पैसा दिया) - You paid them</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             <div className="grid gap-2">
@@ -369,7 +377,14 @@ export default function FirmsPage() {
                                 <TableBody>
                                     {filteredFirms.map((firm) => (
                                         <TableRow key={firm._id}>
-                                            <TableCell className="font-medium">{firm.name}</TableCell>
+                                            <TableCell className="font-medium">
+                                                <button
+                                                    onClick={() => router.push(`/dashboard/firms/${firm._id}`)}
+                                                    className="hover:underline text-left text-primary font-semibold"
+                                                >
+                                                    {firm.name}
+                                                </button>
+                                            </TableCell>
                                             <TableCell className="text-right text-green-600 font-medium">
                                                 {formatCurrency(firm.totalCredit)}
                                             </TableCell>

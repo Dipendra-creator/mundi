@@ -30,6 +30,8 @@ export async function DELETE(
                 $set: {
                     totalCredit: 0,
                     totalDebit: 0,
+                    totalReceived: 0,
+                    totalPaid: 0,
                     balance: 0,
                     transactions: [],
                     updatedAt: new Date()
