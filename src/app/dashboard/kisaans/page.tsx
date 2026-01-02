@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, TrendingUp, TrendingDown } from "lucide-react"
+import { Plus, Search, TrendingUp, TrendingDown, ArrowRightLeft, RotateCcw } from "lucide-react"
 import {
     Dialog,
     DialogContent,
@@ -25,6 +25,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 interface Kisaan {
     _id: string
@@ -41,7 +42,16 @@ export default function KisaansPage() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false)
+    const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
+    const [selectedKisaan, setSelectedKisaan] = useState<Kisaan | null>(null)
+
     const [newKisaan, setNewKisaan] = useState({ name: "", village: "" })
+    const [transaction, setTransaction] = useState({
+        amount: "",
+        type: "credit" as "credit" | "debit",
+        description: ""
+    })
 
     useEffect(() => {
         fetchKisaans()
@@ -77,6 +87,55 @@ export default function KisaansPage() {
         } catch (error) {
             console.error("Failed to create kisaan:", error)
         }
+    }
+
+    const handleAddTransaction = async () => {
+        if (!selectedKisaan || !transaction.amount) return
+
+        try {
+            const response = await fetch(`/api/kisaans/${selectedKisaan._id}/transactions`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(transaction),
+            })
+            const data = await response.json()
+            if (data.success) {
+                setKisaans(kisaans.map(k => k._id === selectedKisaan._id ? data.data : k))
+                setIsTransactionDialogOpen(false)
+                setTransaction({ amount: "", type: "credit", description: "" })
+                setSelectedKisaan(null)
+            }
+        } catch (error) {
+            console.error("Failed to add transaction:", error)
+        }
+    }
+
+    const handleResetTransactions = async () => {
+        if (!selectedKisaan) return
+
+        try {
+            const response = await fetch(`/api/kisaans/${selectedKisaan._id}/reset`, {
+                method: "DELETE",
+            })
+            const data = await response.json()
+            if (data.success) {
+                setKisaans(kisaans.map(k => k._id === selectedKisaan._id ? data.data : k))
+                setIsResetDialogOpen(false)
+                setSelectedKisaan(null)
+            }
+        } catch (error) {
+            console.error("Failed to reset transactions:", error)
+        }
+    }
+
+    const openTransactionDialog = (kisaan: Kisaan) => {
+        setSelectedKisaan(kisaan)
+        setIsTransactionDialogOpen(true)
+    }
+
+    const openResetDialog = (kisaan: Kisaan) => {
+        setSelectedKisaan(kisaan)
+        setIsResetDialogOpen(true)
     }
 
     const filteredKisaans = kisaans.filter((kisaan) =>
@@ -155,6 +214,84 @@ export default function KisaansPage() {
                         </DialogContent>
                     </Dialog>
                 </div>
+
+                {/* Transaction Dialog */}
+                <Dialog open={isTransactionDialogOpen} onOpenChange={setIsTransactionDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add Transaction</DialogTitle>
+                            <DialogDescription>
+                                Record a credit or debit transaction for {selectedKisaan?.name}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="type">Transaction Type</Label>
+                                <select
+                                    id="type"
+                                    value={transaction.type}
+                                    onChange={(e) =>
+                                        setTransaction({ ...transaction, type: e.target.value as "credit" | "debit" })
+                                    }
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                >
+                                    <option value="credit">Credit (लेने) - To Receive</option>
+                                    <option value="debit">Debit (देने) - To Pay</option>
+                                </select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="amount">Amount (₹)</Label>
+                                <Input
+                                    id="amount"
+                                    type="number"
+                                    value={transaction.amount}
+                                    onChange={(e) =>
+                                        setTransaction({ ...transaction, amount: e.target.value })
+                                    }
+                                    placeholder="Enter amount"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="description">Description (Optional)</Label>
+                                <Textarea
+                                    id="description"
+                                    value={transaction.description}
+                                    onChange={(e) =>
+                                        setTransaction({ ...transaction, description: e.target.value })
+                                    }
+                                    placeholder="Enter transaction details"
+                                    rows={3}
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsTransactionDialogOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleAddTransaction}>Add Transaction</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Reset Confirmation Dialog */}
+                <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Reset All Transactions?</DialogTitle>
+                            <DialogDescription>
+                                This will permanently delete all transactions for {selectedKisaan?.name} and reset the balance to ₹0. This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsResetDialogOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button variant="destructive" onClick={handleResetTransactions}>
+                                Reset All Transactions
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Summary Cards */}
                 <div className="grid gap-4 md:grid-cols-3">
@@ -241,6 +378,7 @@ export default function KisaansPage() {
                                         <TableHead className="text-right">Debit (देने)</TableHead>
                                         <TableHead className="text-right">Balance</TableHead>
                                         <TableHead className="text-right">Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -263,6 +401,26 @@ export default function KisaansPage() {
                                                 <Badge variant={kisaan.balance >= 0 ? "default" : "destructive"}>
                                                     {kisaan.balance >= 0 ? "To Receive" : "To Pay"}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex gap-2 justify-end">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => openTransactionDialog(kisaan)}
+                                                    >
+                                                        <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                                        Add Entry
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => openResetDialog(kisaan)}
+                                                        className="text-destructive hover:text-destructive"
+                                                    >
+                                                        <RotateCcw className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}

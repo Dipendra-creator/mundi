@@ -6,13 +6,9 @@ import { usePathname } from "next/navigation"
 import {
     LayoutDashboard,
     Users,
-    Settings,
-    BarChart3,
-    FileText,
     Menu,
     Building2,
     Package,
-    Upload,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -46,7 +42,6 @@ const navigation = [
         title: "Overview",
         items: [
             { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-            { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
         ],
     },
     {
@@ -55,19 +50,6 @@ const navigation = [
             { name: "Firms (फर्म)", href: "/dashboard/firms", icon: Building2 },
             { name: "Kisaan (किसान)", href: "/dashboard/kisaans", icon: Users },
             { name: "Stock (स्टॉक)", href: "/dashboard/stock", icon: Package },
-        ],
-    },
-    {
-        title: "Reports",
-        items: [
-            { name: "Daily Reports", href: "/dashboard/reports", icon: FileText },
-            { name: "Upload Report", href: "/dashboard/upload", icon: Upload },
-        ],
-    },
-    {
-        title: "Settings",
-        items: [
-            { name: "Settings", href: "/dashboard/settings", icon: Settings },
         ],
     },
 ]

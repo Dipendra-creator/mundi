@@ -56,24 +56,44 @@ export async function GET() {
             })),
         };
 
-        // Get daily reports (if any)
-        const dailyReports = await db.collection('dailyreports')
-            .find({})
-            .sort({ date: -1 })
-            .limit(7)
-            .toArray();
+        // Aggregate daily transactions from firms and kisaans
+        const allTransactions = [
+            ...firms.flatMap((f: any) => f.transactions || []),
+            ...kisaans.flatMap((k: any) => k.transactions || [])
+        ];
+
+        // Group by date
+        const groupedTransactions: { [key: string]: { credit: number; debit: number; date: Date } } = {};
+
+        allTransactions.forEach((t: any) => {
+            const dateStr = new Date(t.date).toISOString().split('T')[0];
+            if (!groupedTransactions[dateStr]) {
+                groupedTransactions[dateStr] = { credit: 0, debit: 0, date: new Date(t.date) };
+            }
+            if (t.type === 'credit') {
+                groupedTransactions[dateStr].credit += t.amount || 0;
+            } else if (t.type === 'debit') {
+                groupedTransactions[dateStr].debit += t.amount || 0;
+            }
+        });
+
+        // Convert to array and sort by date (descending)
+        const recentActivity = Object.values(groupedTransactions)
+            .sort((a: any, b: any) => b.date.getTime() - a.date.getTime())
+            .slice(0, 7)
+            .map((t: any) => ({
+                date: t.date.toISOString(),
+                credit: t.credit,
+                debit: t.debit,
+                net: t.credit - t.debit
+            }));
 
         const reportStats = {
-            total: dailyReports.length,
-            totalCredit: dailyReports.reduce((sum: number, r: any) => sum + (r.totalCreditAmount || 0), 0),
-            totalDebit: dailyReports.reduce((sum: number, r: any) => sum + (r.totalDebitAmount || 0), 0),
-            netAmount: dailyReports.reduce((sum: number, r: any) => sum + (r.netAmount || 0), 0),
-            recent: dailyReports.map((r: any) => ({
-                date: r.date,
-                credit: r.totalCreditAmount || 0,
-                debit: r.totalDebitAmount || 0,
-                net: r.netAmount || 0,
-            })),
+            total: recentActivity.length,
+            totalCredit: recentActivity.reduce((sum, r) => sum + r.credit, 0),
+            totalDebit: recentActivity.reduce((sum, r) => sum + r.debit, 0),
+            netAmount: recentActivity.reduce((sum, r) => sum + r.net, 0),
+            recent: recentActivity.reverse(), // Show oldest to newest in chart
         };
 
         // Overall statistics
