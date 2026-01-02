@@ -51,12 +51,12 @@ export async function GET() {
         const stocks = await db.collection('stocks').find({}).toArray();
         const stockStats = {
             total: stocks.length,
-            totalQuantity: stocks.reduce((sum: number, s: any) => sum + (s.totalQuantity || 0), 0),
+            totalBags: stocks.reduce((sum: number, s: any) => sum + (s.quantityBags || 0), 0),
+            totalKg: stocks.reduce((sum: number, s: any) => sum + (s.quantityKg || 0), 0),
             byType: stocks.map((s: any) => ({
                 cropType: s.cropType,
-                quantity: s.totalQuantity || 0,
-                unit: s.unit,
-                extraQuantity: s.extraQuantity || 0,
+                quantityBags: s.quantityBags || 0,
+                quantityKg: s.quantityKg || 0,
             })),
         };
 

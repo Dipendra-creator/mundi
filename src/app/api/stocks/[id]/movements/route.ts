@@ -11,9 +11,12 @@ export async function POST(
     try {
         const { id } = await params;
         const body = await request.json();
-        const { quantity, type, description } = body;
+        const { quantityBags, quantityKg, type, description } = body;
 
-        if (!quantity || !type || (type !== 'increase' && type !== 'decrease')) {
+        const bags = parseInt(quantityBags) || 0;
+        const kg = parseFloat(quantityKg) || 0;
+
+        if ((bags === 0 && kg === 0) || !type || (type !== 'increase' && type !== 'decrease')) {
             return NextResponse.json(
                 { success: false, error: 'Invalid stock movement data' },
                 { status: 400 }
@@ -33,8 +36,10 @@ export async function POST(
         }
 
         const movement = {
+            _id: new ObjectId(),
             date: new Date(),
-            quantity: parseFloat(quantity),
+            quantityBags: bags,
+            quantityKg: kg,
             type,
             description: description || '',
         };
@@ -53,16 +58,26 @@ export async function POST(
         };
 
         if (type === 'increase') {
-            updateData.$inc = { totalQuantity: parseFloat(quantity) };
+            updateData.$inc = {
+                quantityBags: bags,
+                quantityKg: kg
+            };
         } else {
             // Check if we have enough stock
-            if ((stock.totalQuantity || 0) < parseFloat(quantity)) {
-                return NextResponse.json(
-                    { success: false, error: 'Insufficient stock quantity' },
-                    { status: 400 }
-                );
+            const currentBags = stock.quantityBags || 0;
+            const currentKg = stock.quantityKg || 0;
+
+            if (currentBags < bags) {
+                return NextResponse.json({ success: false, error: 'Insufficient bags' }, { status: 400 });
             }
-            updateData.$inc = { totalQuantity: -parseFloat(quantity) };
+            if (currentKg < kg) {
+                return NextResponse.json({ success: false, error: 'Insufficient loose kg' }, { status: 400 });
+            }
+
+            updateData.$inc = {
+                quantityBags: -bags,
+                quantityKg: -kg
+            };
         }
 
         await db.collection('stocks').updateOne(

@@ -58,8 +58,9 @@ interface DashboardStats {
     }
     stocks: {
         total: number
-        totalQuantity: number
-        byType: Array<{ cropType: string; quantity: number; unit: string; extraQuantity?: number }>
+        totalBags: number
+        totalKg: number
+        byType: Array<{ cropType: string; quantityBags: number; quantityKg: number }>
     }
     reports: {
         total: number
@@ -73,7 +74,7 @@ interface DashboardStats {
 export default function DashboardPage() {
     const [stats, setStats] = useState<DashboardStats | null>(null)
     const [loading, setLoading] = useState(true)
-    const [initializing, setInitializing] = useState(false)
+    const [showBagsInChart, setShowBagsInChart] = useState(false)
 
     const fetchStats = async () => {
         try {
@@ -92,7 +93,6 @@ export default function DashboardPage() {
 
     const initializeDatabase = async () => {
         try {
-            setInitializing(true)
             const response = await fetch("/api/init-db", { method: "POST" })
             const data = await response.json()
             if (data.success) {
@@ -100,8 +100,6 @@ export default function DashboardPage() {
             }
         } catch (error) {
             console.error("Failed to initialize database:", error)
-        } finally {
-            setInitializing(false)
         }
     }
 
@@ -275,12 +273,18 @@ export default function DashboardPage() {
                             <Package className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{stats.stocks.total}</div>
-                            <div className="mt-2 text-xs">
+                            <div className="text-2xl font-bold">{stats.stocks.total} Items</div>
+                            <div className="mt-2 text-xs space-y-1">
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Total Quantity:</span>
+                                    <span className="text-muted-foreground">Total Bags:</span>
                                     <span className="font-medium">
-                                        {stats.stocks.totalQuantity.toLocaleString()} kg
+                                        {stats.stocks.totalBags}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Total Kg:</span>
+                                    <span className="font-medium">
+                                        {stats.stocks.totalKg.toLocaleString()} kg
                                     </span>
                                 </div>
                             </div>
@@ -293,8 +297,16 @@ export default function DashboardPage() {
                     {/* Stock Distribution */}
                     <Card>
                         <CardHeader>
-                            <CardTitle>Stock Distribution</CardTitle>
-                            <CardDescription>Crop-wise inventory</CardDescription>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <CardTitle>Stock Distribution</CardTitle>
+                                    <CardDescription>Crop-wise inventory ({showBagsInChart ? 'Bags' : 'Kg'})</CardDescription>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button variant={showBagsInChart ? "secondary" : "ghost"} size="sm" onClick={() => setShowBagsInChart(true)}>Bags</Button>
+                                    <Button variant={!showBagsInChart ? "secondary" : "ghost"} size="sm" onClick={() => setShowBagsInChart(false)}>Kg</Button>
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <ResponsiveContainer width="100%" height={300}>
@@ -304,16 +316,16 @@ export default function DashboardPage() {
                                         cx="50%"
                                         cy="50%"
                                         labelLine={false}
-                                        label={(entry) => `${entry.cropType}: ${entry.quantity}`}
+                                        label={(entry: any) => `${entry.cropType} (${showBagsInChart ? entry.quantityBags : entry.quantityKg})`}
                                         outerRadius={80}
                                         fill="#8884d8"
-                                        dataKey="quantity"
+                                        dataKey={showBagsInChart ? "quantityBags" : "quantityKg"}
                                     >
                                         {stats.stocks.byType.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
-                                    <Tooltip />
+                                    <Tooltip formatter={(value: any) => `${value} ${showBagsInChart ? 'Bags' : 'Kg'}`} />
                                 </PieChart>
                             </ResponsiveContainer>
                         </CardContent>
@@ -335,7 +347,7 @@ export default function DashboardPage() {
                                     />
                                     <YAxis />
                                     <Tooltip
-                                        formatter={(value: number) => formatCurrency(value)}
+                                        formatter={(value: any) => formatCurrency(value)}
                                         labelFormatter={(value) => new Date(value).toLocaleDateString('hi-IN')}
                                     />
                                     <Legend />

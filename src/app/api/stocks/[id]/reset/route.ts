@@ -29,6 +29,8 @@ export async function DELETE(
             {
                 $set: {
                     totalQuantity: 0,
+                    quantityBags: 0,
+                    quantityKg: 0,
                     movements: [],
                     updatedAt: new Date()
                 }
